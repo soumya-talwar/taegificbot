@@ -38,7 +38,7 @@ recommend.on("tweet", tweetdata => {
   let tweetid = tweetdata.id_str;
   let quote = false;
   if (tweetdata.quoted_status) {
-    if (tweetdata.text.search(/@taegificbot recommend/i) == -1)
+    if ((/@taegificbot recommend/i).test(tweetdata.text))
       quote = true;
   }
   if (!quote && !tweetdata.retweeted_status) {
@@ -50,10 +50,9 @@ recommend.on("tweet", tweetdata => {
     if (index_l != -1) {
       let start = text.indexOf("(", index_l);
       let end = text.indexOf(")", index_l);
-      if (start != -1 && end != -1) {
-        length = text.substring(start + 1, end);
-        length = length.trim().toLowerCase();
-      } else
+      if (start != -1 && end != -1)
+        length = text.substring(start + 1, end).trim().toLowerCase();
+      else
         valid = false;
     }
     let index_t = text.search(/tags/i);
@@ -61,12 +60,12 @@ recommend.on("tweet", tweetdata => {
       let start = text.indexOf("(", index_t);
       let end = text.indexOf(")", index_t);
       if (start != -1 && end != -1) {
-        let tags_str = text.substring(start + 1, end);
+        let tags_str = text.substring(start + 1, end).trim().toLowerCase();
         let tags_arr = tags_str.split(",");
-        for (let i = 0; i < tags_arr.length; i++) {
-          let tag = tags_arr[i].trim().toLowerCase();
+        for (let tag of tags_arr) {
+          tag = tag.trim();
           let words = [];
-          if (tag.search(" ") != -1)
+          if ((/\s/).test(tag))
             words = tag.split(" ");
           else
             words.push(tag);
@@ -76,23 +75,23 @@ recommend.on("tweet", tweetdata => {
         valid = false;
     }
     let poly = [{
-        "ship": "taegijin",
+        "name": "taegijin",
         "pairing": "min yoongi | suga/kim seokjin | jin/kim taehyung | v"
       },
       {
-        "ship": "taegiseok",
+        "name": "taegiseok",
         "pairing": "jung hoseok | j-hope/kim taehyung | v/min yoongi | suga"
       },
       {
-        "ship": "taegijoon",
+        "name": "taegijoon",
         "pairing": "kim namjoon | rap monster/kim taehyung | v/min yoongi | suga"
       },
       {
-        "ship": "taegimin",
+        "name": "taegimin",
         "pairing": "kim taehyung | v/min yoongi | suga/park jimin"
       },
       {
-        "ship": "taegikook",
+        "name": "taegikook",
         "pairing": "jeon jungkook/kim taehyung | v/min yoongi | suga"
       }
     ];
@@ -110,7 +109,7 @@ recommend.on("tweet", tweetdata => {
       threshold1 = 50000;
     else if (length != "")
       valid = false;
-    if (valid == true) {
+    if (valid) {
       let parameters = {
         $and: [{
           length: {
@@ -121,13 +120,12 @@ recommend.on("tweet", tweetdata => {
       };
       let obj1 = {};
       obj1["$and"] = [];
-      for (let i = 0; i < tags.length; i++) {
+      for (let tag of tags) {
         let obj2 = {};
-        tags[i][0] = tags[i][0].toLowerCase();
-        for (let j = 0; j < poly.length; j++) {
-          if (tags[i][0] === poly[j].ship) {
+        for (let ship of poly) {
+          if (tag[0] == ship.name) {
             obj2.ships = {};
-            obj2.ships["$elemMatch"] = poly[j].pairing;
+            obj2.ships["$elemMatch"] = ship.pairing;
             break;
           }
         }
@@ -135,9 +133,9 @@ recommend.on("tweet", tweetdata => {
           obj2.tags = {};
           obj2.tags["$elemMatch"] = {};
           obj2.tags["$elemMatch"]["$and"] = [];
-          for (let j = 0; j < tags[i].length; j++) {
+          for (let word of tag) {
             let obj3 = {};
-            obj3.tag = new RegExp(tags[i][j]);
+            obj3.tag = new RegExp(word);
             obj2.tags["$elemMatch"]["$and"].push(obj3);
           }
         }
@@ -241,7 +239,7 @@ async function scrape(fic) {
   let promise = await new Promise((resolve, reject) => {
     axios.get(fic.link)
       .then((response) => {
-        var $ = cheerio.load(response.data);
+        let $ = cheerio.load(response.data);
         fic.title = $("h4.heading a").eq(0).text().toLowerCase();
         if (fic.title.length == 0)
           fic.title = $("h2.heading").text().toLowerCase().replace(/\n/g, "").trim();
@@ -339,12 +337,9 @@ build();
 
 function build() {
   ref.once("value", data => {
-      let all = data.val();
-      let ids = Object.keys(all);
-      for (let i = 0; i < ids.length; i++) {
-        let id = ids[i];
-        let fic = all[id];
-        database2.insert(fic);
+      let fics = data.val();
+      for (let id in fics) {
+        database2.insert(fics[id]);
       }
       console.log("local database rebuilt!");
     },
