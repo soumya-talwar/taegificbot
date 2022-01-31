@@ -1,4 +1,5 @@
 const twit = require("twit");
+require("dotenv").config();
 const bot = new twit(require("./config"));
 
 const axios = require("axios");
